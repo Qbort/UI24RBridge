@@ -404,14 +404,15 @@ namespace UI24RController
                             var currentGainChannel = _mixerChannels[ch] as IInputable;
                             if (currentGainChannel.SrcType == SrcTypeEnum.Hw)
                             {
-                                currentGainChannel.Gain = currentGainChannel.Gain + (1.0d / 100.0d) * e.KnobDirection;
-                                if (currentGainChannel.Gain > 1)
-                                    currentGainChannel.Gain = 1;
-                                if (currentGainChannel.Gain < 0)
-                                    currentGainChannel.Gain = 0;
+                                double step = 1.0d / 63.0d;
+                                int index = (int)Math.Round(currentGainChannel.Gain / step);
+                                index += e.KnobDirection;
+                                currentGainChannel.Gain = Math.Clamp(index * step, 0.0, 1.0);
 
+                                Console.WriteLine(string.Format("Local {0:0.0}dB", currentGainChannel.Gain));
+                                Console.WriteLine(string.Format("_mixerChannels[ch]  {0:0.0}dB", (_mixerChannels[ch] as IInputable).Gain ));
                                 _client.Send(currentGainChannel.GainMessage());
-                                controller.SetKnobLed(e.ChannelNumber, currentGainChannel.Gain);
+                                SetControllerChannelKnobb(controller, ch, e.ChannelNumber);
                                 //if multiple channels are set to same HW input
                                 foreach (var singleChannel in _mixerChannels)
                                 {
@@ -423,7 +424,7 @@ namespace UI24RController
                                             singleInputChannel.Gain = currentGainChannel.Gain;
                                             for (int i = 0; i < 8; ++i)
                                                 if (singleInputChannel == _mixerChannels[_mixer.getChannelNumberInCurrentLayer(i, controller.ChannelOffset)])
-                                                    controller.SetKnobLed(i, currentGainChannel.Gain);
+                                                    SetControllerChannelKnobb(controller, i, e.ChannelNumber);
                                         }
                                     }
                                 }
@@ -988,12 +989,19 @@ namespace UI24RController
                             {
                                 var inputChannel = _mixerChannels[channelNumber] as IInputable;
                                 if (inputChannel.SrcType == SrcTypeEnum.Hw)
+                                {
+                                    Console.WriteLine(string.Format("SetControllerChannelKnobb {0:0.0}dB Chann {1}", (inputChannel.Gain * 63)-6), controllerChannelNumber);
                                     controller.SetKnobLed(controllerChannelNumber, inputChannel.Gain);
-                                else
-                                    controller.SetKnobLed(controllerChannelNumber, 0);
+                                    controller.WriteTextToChannelLCDSecondLine(
+                                        controllerChannelNumber,
+                                        string.Format("{0:0.0}dB", (inputChannel.Gain * 63)-6)
+                                    );
+                                    break;
+                                }
                             }
-                            else
-                                controller.SetKnobLed(controllerChannelNumber, 0);
+
+                            controller.SetKnobLed(controllerChannelNumber, 0);
+                            controller.WriteTextToChannelLCDSecondLine(controllerChannelNumber, "");
                         }
                         break;
                     case KnobsFunctionEnum.Pan:
@@ -1114,7 +1122,7 @@ namespace UI24RController
 
                                     if (ui24Message.IsValid && chOnLayer.controllerChannelNumber < 8 && this.KnobsFunction == KnobsFunctionEnum.Gain)
                                     {
-                                        chOnLayer.controller.SetKnobLed(chOnLayer.controllerChannelNumber, ui24Message.Gain);
+                                        SetControllerChannelKnobb(chOnLayer.controller, ui24Message.ChannelNumber, chOnLayer.controllerChannelNumber);
                                     }
                                 }
                             }
