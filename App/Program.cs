@@ -8,7 +8,7 @@ using System.Threading;
 using UI24RController;
 using UI24RController.MIDIController;
 
-namespace UI24RBridge
+namespace UI24RBridgeApp
 {
     class Program
     {
